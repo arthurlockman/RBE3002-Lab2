@@ -126,10 +126,10 @@ if __name__ == '__main__':
     print "Starting Lab 2"
 
     #make the robot keep doing something...
-    rospy.Timer(rospy.Duration(10), timerCallback)
+    # rospy.Timer(rospy.Duration(10), timerCallback)
 
     # Make the robot do stuff...
-    spinWheels(1, 1, 10)
+    spinWheels(-1, -1, 10)
 
     print "Lab 2 complete!"
 
