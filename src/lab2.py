@@ -114,7 +114,7 @@ if __name__ == '__main__':
     global odom_list
 
     # Replace the elipses '...' in the following lines to set up the publishers and subscribers the lab requires
-    pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist) # Publisher for commanding robot motion
+    pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
     bumper_sub = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
 
     # Use this object to get the robot's Odometry
@@ -129,7 +129,7 @@ if __name__ == '__main__':
     # rospy.Timer(rospy.Duration(10), timerCallback)
 
     # Make the robot do stuff...
-    spinWheels(-1, -1, 10)
+    spinWheels(-0.6, -0.3, 10)
 
     print "Lab 2 complete!"
 
