@@ -44,10 +44,10 @@ def spinWheels(u1, u2, time):
 
     move_msg = Twist()
     move_msg.linear.x = u
-    move_msg.linear.z = w
+    move_msg.angular.z = w
     stop_msg = Twist()
     stop_msg.linear.x = 0
-    stop_msg.linear.z = 0
+    stop_msg.angular.z = 0
 
     while(rospy.Time().now().secs - start < time and not rospy.is_shutdown()):
         pub.publish(move_msg)
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     # rospy.Timer(rospy.Duration(10), timerCallback)
 
     # Make the robot do stuff...
-    spinWheels(-0.6, -0.3, 10)
+    spinWheels(5, 0, 5)
 
     print "Lab 2 complete!"
 
