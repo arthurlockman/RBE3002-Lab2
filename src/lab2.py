@@ -4,11 +4,9 @@ import rospy, tf
 from kobuki_msgs.msg import BumperEvent
 from geometry_msgs.msg import Twist
 
-# Add additional imports for each of the message types used
 
-
-wheel_rad = 3.5 #cm
-wheel_base = 23.0 #cm
+wheel_rad = 3.5 / 100.0 #cm
+wheel_base = 23.0 / 100.0 #cm
 
 #drive to a goal subscribed as /move_base_simple/goal
 def navToPose(goal):
@@ -42,7 +40,7 @@ def spinWheels(u1, u2, time):
 
     u = (r / 2) * (u1 + u2)
     w = (r / b) * (u1 - u2)
-    start = rospy.Time().secs
+    start = rospy.Time().now().secs
 
     move_msg = Twist()
     move_msg.linear.x = u
@@ -51,7 +49,7 @@ def spinWheels(u1, u2, time):
     stop_msg.linear.x = 0
     stop_msg.linear.z = 0
 
-    while(rospy.Time().secs - start < time and not rospy.is_shutdown()):
+    while(rospy.Time().now().secs - start < time and not rospy.is_shutdown()):
         pub.publish(move_msg)
     pub.publish(stop_msg)
     pass  # Delete this 'pass' once implemented
@@ -59,11 +57,8 @@ def spinWheels(u1, u2, time):
 
 #This function accepts a speed and a distance for the robot to move in a straight line
 def driveStraight(speed, distance):
-    #compute time required to move distance at speed
-    #setup timer to expire when time elapsed
-    #spinWheels at same speed input in parameter
-    #stop when timer expires
-    pass  # Delete this 'pass' once implemented
+    move_time = speed / distance
+    spinWheels(speed, speed, move_time)
 
 
 #Accepts an angle and makes the robot rotate around it.
@@ -86,6 +81,7 @@ def readBumper(msg):
     if (msg.state == 1):
         # What should happen when the bumper is pressed?
         #Stop forward motion if bumper is pressed
+        print "Bumper pressed!"
         pass  # Delete this 'pass' once implemented
 
 
@@ -94,9 +90,9 @@ def readBumper(msg):
 #   rospy.Timer(rospy.Duration(.01), timerCallback)
 def timerCallback(event):
     global pose
-    pose = Pose()
+    # pose = Pose()
     #finds the position and oriention of two objects relative to each other (hint: this returns arrays, while Pose uses lists)
-    (position, orientation) = odom_list.lookupTransform('...','...', rospy.Time(0))
+    # (position, orientation) = odom_list.lookupTransform('...','...', rospy.Time(0))
     pass # Delete this 'pass' once implemented
 
 
