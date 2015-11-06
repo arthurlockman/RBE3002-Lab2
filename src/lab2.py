@@ -57,8 +57,9 @@ def spinWheels(u1, u2, time):
 
 #This function accepts a speed and a distance for the robot to move in a straight line
 def driveStraight(speed, distance):
-    move_time = speed / distance
-    spinWheels(speed, speed, move_time)
+    move_time = distance / speed
+    w = speed / wheel_rad
+    spinWheels(w, w, move_time)
 
 
 #Accepts an angle and makes the robot rotate around it.
@@ -125,7 +126,7 @@ if __name__ == '__main__':
     # rospy.Timer(rospy.Duration(10), timerCallback)
 
     # Make the robot do stuff...
-    spinWheels(5, 0, 5)
+    driveStraight(0.25, 1)
 
     print "Lab 2 complete!"
 
