@@ -32,10 +32,10 @@ def navToPose(goal):
 
 #This function sequentially calls methods to perform a trajectory.
 def executeTrajectory():
-    driveStraight(1, 60)
-    rotate(90)
-    driveStraight(1, 45)
-    rotate(-135)
+    driveStraight(1, 0.6)
+    rotateDegrees(-90)
+    driveStraight(1, .45)
+    rotate(135)
     pass  # Delete this 'pass' once implemented
 
 
@@ -80,31 +80,30 @@ def driveStraight(speed, distance):
         currentX = xPosition
         currentY = yPosition
         currentDistance = math.sqrt(math.pow((currentX - initialX), 2) + math.pow((currentY - initialY), 2))
-        print currentDistance
         if (currentDistance >= distance):
             atTarget = True
             sendMoveMsg(0, 0)
         else:
             sendMoveMsg(speed, 0)
-
+            rospy.sleep(0.15)
 
 #Accepts an angle and makes the robot rotate around it.
 def rotate(angle):
     global xPosition
     global yPosition
     global theta
-    desiredTheta = theta + angle
+    desiredTheta = theta + angle * (180 / math.pi)
     if (desiredTheta >= 360):
         desiredTheta = desiredTheta - 360
-    while ((theta > desiredTheta + 2) or (theta < desiredTheta - 2)):
+    while ((theta > desiredTheta + 2) or (theta < desiredTheta - 2) and not rospy.is_shutdown()):
         if (angle < 0):
-            sendMoveMsg(0, -0.25)
+            sendMoveMsg(0, -0.5)
         else:
-            sendMoveMsg(0, 0.25)
-        print theta
-        rospy.sleep(0.15)
+            sendMoveMsg(0, 0.5)
     sendMoveMsg(0, 0)
 
+def rotateDegrees(angle):
+    rotate(angle * (math.pi / 180))
 
 #This function works the same as rotate how ever it does not publish linear velocities.
 def driveArc(radius, speed, angle):
@@ -120,6 +119,7 @@ def readBumper(msg):
         # What should happen when the bumper is pressed?
         #Stop forward motion if bumper is pressed
         print "Bumper pressed!"
+        executeTrajectory()
         pass  # Delete this 'pass' once implemented
 
 
@@ -162,22 +162,24 @@ if __name__ == '__main__':
     global pose
     global odom_list
 
-    # Replace the elipses '...' in the following lines to set up the publishers and subscribers the lab requires
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
     bumper_sub = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
     sub = rospy.Subscriber('odom', Odometry, readOdom)
     odom_list = tf.TransformListener()
 
     # Use this command to make the program wait for some seconds
-    rospy.sleep(rospy.Duration(1, 0))
+    rospy.sleep(2)
 
     print "Starting Lab 2"
 
     #make the robot keep doing something...
     # rospy.Timer(rospy.Duration(10), timerCallback)
 
-    rotate(90)
-    # spinWheels(-5, 5, 10)
+    # driveStraight(0.25, 0.25)
+    # rotateDegrees(90)
+    
+    while (not rospy.is_shutdown()):
+        rospy.spin()
 
     print "Lab 2 complete!"
 
