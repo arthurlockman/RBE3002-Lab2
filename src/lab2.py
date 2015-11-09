@@ -36,7 +36,7 @@ def navToPose(goal):
     distance = math.sqrt(math.pow((desiredX - xPosition), 2) + math.pow((desiredY - yPosition), 2))
     adjustedX = goal.pose.position.x - xPosition
     adjustedY = goal.pose.position.y - yPosition
-    initialTurn = math.atan(adjustedY / adjustedX) * (180 / math.pi) - theta - 180
+    initialTurn = math.atan(adjustedY / adjustedX) * (180 / math.pi) - theta 
 
     print "moving from (" + str(xPosition) + ", " + str(yPosition) + ") @ " + str(theta) + " degrees"
     print "moving to (" + str(desiredX) + ", " + str(desiredY) + ") @ " + str(desiredT) + " degrees"
@@ -111,44 +111,21 @@ def driveStraight(speed, distance):
 
 #Accepts an angle and makes the robot rotate around it.
 def rotate(angle):
-    kP = 0.00001
-    kI = 0.001
-    kD = 0.005
     global xPosition
     global yPosition
     global theta
-
     desiredTheta = theta + angle * (180 / math.pi)
     if (desiredTheta >= 360):
         desiredTheta = desiredTheta - 360
     elif (desiredTheta <= 0):
         desiredTheta = 360 + desiredTheta
-
-    e = theta - desiredTheta
-    e_1 = 0
-    e_2 = 0
-    last = 0
-    dT = 0.01
-    k1 = 1 + dT * (kI / kP) + (kD / kP)
-    k2 = -1 - 2 * ((kD / kP) / dT)
-    k3 = (kD / dT) / dT
-    r = rospy.Rate(100)
-    while ((int(theta) > int(desiredTheta) + 2) or (int(theta) < int(desiredTheta) - 2) and not rospy.is_shutdown()):
-        e_2 = e_1
-        e_1 = e
-        e = theta - desiredTheta
-        u = kP * (k1 * e + k2 * e_1 + k3 * e_2)
-        last = u
-        # print str(e) + " " + str(e_1) + " " + str(e_2) + " " + str(dT)
-        # print e
+    while ((theta > desiredTheta + 2) or (theta < desiredTheta - 2) and not rospy.is_shutdown()):
         if (angle < 0):
-            sendMoveMsg(0, u)
+            sendMoveMsg(0, -0.5)
         else:
-            sendMoveMsg(0, u)
-        r.sleep()
-    print "Turned " + str(angle * (180 / math.pi)) + " degrees."
+            sendMoveMsg(0, 0.5)
+        # print (desiredTheta - theta)
     sendMoveMsg(0, 0)
-
 
 def rotateDegrees(angle):
     rotate(angle * (math.pi / 180))
@@ -222,7 +199,9 @@ if __name__ == '__main__':
     goal_sub = rospy.Subscriber('move_base_simple/goal', PoseStamped, navToPose, queue_size=1)
     sub = rospy.Subscriber('/odom', Odometry, readOdom)
     odom_list = tf.TransformListener()
-
+    odom_tf = tf.TransformBroadcaster()
+    odom_tf.sendTransform((0, 0, 0),(0, 0, 0, 1),rospy.Time.now(),"base_footprint","odom")
+    
     # Use this command to make the program wait for some seconds
     rospy.sleep(2)
 
@@ -235,8 +214,6 @@ if __name__ == '__main__':
     while (not rospy.is_shutdown()):
         rospy.spin()
         # rotateDegrees(90)
-        # rospy.sleep(5)
-        # rotateDegrees(-90)
         # rospy.sleep(5)
 
     print "Lab 2 complete!"
