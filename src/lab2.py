@@ -112,20 +112,41 @@ def driveStraight(speed, distance):
 
 #Accepts an angle and makes the robot rotate around it.
 def rotate(angle):
+    kP = 0.01
+    kI = 0.01
+    kD = 0.01
     global xPosition
     global yPosition
     global theta
+
     desiredTheta = theta + angle * (180 / math.pi)
     if (desiredTheta >= 360):
         desiredTheta = desiredTheta - 360
     elif (desiredTheta <= 0):
         desiredTheta = 360 + desiredTheta
+
+    e = theta - desiredTheta
+    e_1 = 0
+    e_2 = 0
+    last = 0
+    dT = 0.01
+    k1 = 1 + dT * (kI / kP) + (kD / kP)
+    k2 = -1 - 2 * ((kD / kP) / dT)
+    k3 = (kD / dT) / dT
+    r = rospy.Rate(100)
     while ((theta > desiredTheta + 2) or (theta < desiredTheta - 2) and not rospy.is_shutdown()):
+        e_2 = e_1
+        e_1 = e
+        e = theta - desiredTheta
+        u = kP * (k1 * e + k2 * e_1 + k3 * e_2)
+        last = u
+        # print str(e) + " " + str(e_1) + " " + str(e_2) + " " + str(dT)
+        print e
         if (angle < 0):
-            sendMoveMsg(0, -0.5)
+            sendMoveMsg(0, u)
         else:
-            sendMoveMsg(0, 0.5)
-        print (desiredTheta - theta)
+            sendMoveMsg(0, u)
+        r.sleep()
     sendMoveMsg(0, 0)
 
 def rotateDegrees(angle):
@@ -203,10 +224,11 @@ if __name__ == '__main__':
     # rospy.Timer(rospy.Duration(10), timerCallback)
 
     # driveStraight(0.25, 0.25)
-    # rotateDegrees(90)
-    
     while (not rospy.is_shutdown()):
-        rospy.spin()
+        rotateDegrees(90)
+        rospy.sleep(5)
+        rotateDegrees(-90)
+        rospy.sleep(5)
 
     print "Lab 2 complete!"
 
