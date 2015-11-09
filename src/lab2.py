@@ -88,9 +88,6 @@ def spinWheels(u1, u2, time):
 
 #This function accepts a speed and a distance for the robot to move in a straight line
 def driveStraight(speed, distance):
-    move_time = distance / speed
-    w = speed / wheel_rad
-    spinWheels(w, w, move_time)
     global xPosition
     global yPosition
     global theta
