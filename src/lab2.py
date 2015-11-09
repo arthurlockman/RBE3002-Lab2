@@ -5,6 +5,7 @@ from kobuki_msgs.msg import BumperEvent
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
+from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion
 
 
@@ -23,11 +24,33 @@ def sendMoveMsg(linearVelocity, angularVelocity):
 #drive to a goal subscribed as /move_base_simple/goal
 def navToPose(goal):
     #compute angle required to make straight-line move to desired pose
+    global xPosition
+    global yPosition
+    global theta
+    desiredY = goal.pose.position.y
+    desiredX = goal.pose.position.x
+    quat = goal.pose.orientation
+    q = [quat.x, quat.y, quat.z, quat.w]
+    roll, pitch, yaw = euler_from_quaternion(q)
+    desiredT =  yaw * (180.0/math.pi) + 180
+    distance = math.sqrt(math.pow((desiredX - xPosition), 2) + math.pow((desiredY - yPosition), 2))
+    adjustedX = goal.pose.position.x - xPosition
+    adjustedY = goal.pose.position.y - yPosition
+    initialTurn = theta - 180 - math.atan2(adjustedY, adjustedX) * (180 / math.pi)
+
+    print "moving from (" + str(xPosition) + ", " + str(yPosition) + ")"
+    print "moving to (" + str(desiredX) + ", " + str(desiredY) + ")"
+    print "distance: " + str(distance) + ", initial turn: " + str(initialTurn)
     print "spin!" #turn to calculated angle
+    rotateDegrees(-initialTurn)
     print "move!" #move in straight line specified distance to new pose
+    driveStraight(0.25, distance)
+    rospy.sleep(2)
     print "spin!" #spin to final angle
+    finalTurn = desiredT - theta
+    print "rotate " + str(finalTurn) +  " to " + str(desiredT)
+    rotate(finalTurn)
     print "done"
-    pass
 
 
 #This function sequentially calls methods to perform a trajectory.
@@ -95,11 +118,14 @@ def rotate(angle):
     desiredTheta = theta + angle * (180 / math.pi)
     if (desiredTheta >= 360):
         desiredTheta = desiredTheta - 360
+    elif (desiredTheta <= 0):
+        desiredTheta = 360 + desiredTheta
     while ((theta > desiredTheta + 2) or (theta < desiredTheta - 2) and not rospy.is_shutdown()):
         if (angle < 0):
             sendMoveMsg(0, -0.5)
         else:
             sendMoveMsg(0, 0.5)
+        print (desiredTheta - theta)
     sendMoveMsg(0, 0)
 
 def rotateDegrees(angle):
@@ -164,6 +190,7 @@ if __name__ == '__main__':
 
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
     bumper_sub = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
+    goal_sub = rospy.Subscriber('move_base_simple/goal', PoseStamped, navToPose, queue_size=1)
     sub = rospy.Subscriber('odom', Odometry, readOdom)
     odom_list = tf.TransformListener()
 
