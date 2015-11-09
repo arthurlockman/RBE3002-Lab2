@@ -49,7 +49,7 @@ def navToPose(goal):
     print "spin!" #spin to final angle
     finalTurn = desiredT - theta
     print "rotate " + str(finalTurn) +  " to " + str(desiredT)
-    rotate(finalTurn)
+    rotateDegrees(finalTurn)
     print "done"
 
 
@@ -100,7 +100,7 @@ def driveStraight(speed, distance):
         currentX = xPosition
         currentY = yPosition
         currentDistance = math.sqrt(math.pow((currentX - initialX), 2) + math.pow((currentY - initialY), 2))
-        print (currentDistance - distance)
+        # print (currentDistance - distance)
         if (currentDistance >= distance):
             atTarget = True
             sendMoveMsg(0, 0)
@@ -111,9 +111,9 @@ def driveStraight(speed, distance):
 
 #Accepts an angle and makes the robot rotate around it.
 def rotate(angle):
-    kP = 0.01
-    kI = 0.01
-    kD = 0.05
+    kP = 0.00001
+    kI = 0.001
+    kD = 0.005
     global xPosition
     global yPosition
     global theta
@@ -133,14 +133,14 @@ def rotate(angle):
     k2 = -1 - 2 * ((kD / kP) / dT)
     k3 = (kD / dT) / dT
     r = rospy.Rate(100)
-    while ((theta > desiredTheta + 2) or (theta < desiredTheta - 2) and not rospy.is_shutdown()):
+    while ((int(theta) > int(desiredTheta) + 2) or (int(theta) < int(desiredTheta) - 2) and not rospy.is_shutdown()):
         e_2 = e_1
         e_1 = e
         e = theta - desiredTheta
         u = kP * (k1 * e + k2 * e_1 + k3 * e_2)
         last = u
         # print str(e) + " " + str(e_1) + " " + str(e_2) + " " + str(dT)
-        print e
+        # print e
         if (angle < 0):
             sendMoveMsg(0, u)
         else:
@@ -178,9 +178,15 @@ def readOdom(msg):
     global xPosition
     global yPosition
     global theta
+    global odom_list
 
     pose = msg.pose
     geo_quat = pose.pose.orientation
+    # try:
+    #     (trans, rot) = odom_list.lookupTransform('base_footprint', 'map', rospy.Time(0))
+    #     xPosition = -trans[1]
+    #     yPosition = -trans[0]
+    # except:
     xPosition = pose.pose.position.x
     yPosition = pose.pose.position.y
     q = [geo_quat.x, geo_quat.y, geo_quat.z, geo_quat.w]
@@ -214,7 +220,7 @@ if __name__ == '__main__':
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
     bumper_sub = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
     goal_sub = rospy.Subscriber('move_base_simple/goal', PoseStamped, navToPose, queue_size=1)
-    sub = rospy.Subscriber('odom', Odometry, readOdom)
+    sub = rospy.Subscriber('/odom', Odometry, readOdom)
     odom_list = tf.TransformListener()
 
     # Use this command to make the program wait for some seconds
