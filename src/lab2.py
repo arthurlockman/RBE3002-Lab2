@@ -108,6 +108,7 @@ def driveStraight(speed, distance):
             sendMoveMsg(speed, 0)
             rospy.sleep(0.15)
 
+
 #Accepts an angle and makes the robot rotate around it.
 def rotate(angle):
     kP = 0.01
@@ -145,10 +146,13 @@ def rotate(angle):
         else:
             sendMoveMsg(0, u)
         r.sleep()
+    print "Turned " + str(angle * (180 / math.pi)) + " degrees."
     sendMoveMsg(0, 0)
+
 
 def rotateDegrees(angle):
     rotate(angle * (math.pi / 180))
+
 
 #This function works the same as rotate how ever it does not publish linear velocities.
 def driveArc(radius, speed, angle):
