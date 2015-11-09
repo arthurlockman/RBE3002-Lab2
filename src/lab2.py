@@ -36,7 +36,7 @@ def navToPose(goal):
     distance = math.sqrt(math.pow((desiredX - xPosition), 2) + math.pow((desiredY - yPosition), 2))
     adjustedX = goal.pose.position.x - xPosition
     adjustedY = goal.pose.position.y - yPosition
-    initialTurn = math.atan(desiredY / desiredX) - theta - 180
+    initialTurn = math.atan(adjustedY / adjustedX) * (180 / math.pi) - theta - 180
 
     print "moving from (" + str(xPosition) + ", " + str(yPosition) + ") @ " + str(theta) + " degrees"
     print "moving to (" + str(desiredX) + ", " + str(desiredY) + ") @ " + str(desiredT) + " degrees"
@@ -113,7 +113,7 @@ def driveStraight(speed, distance):
 def rotate(angle):
     kP = 0.01
     kI = 0.01
-    kD = 0.01
+    kD = 0.05
     global xPosition
     global yPosition
     global theta
