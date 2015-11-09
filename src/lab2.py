@@ -36,13 +36,13 @@ def navToPose(goal):
     distance = math.sqrt(math.pow((desiredX - xPosition), 2) + math.pow((desiredY - yPosition), 2))
     adjustedX = goal.pose.position.x - xPosition
     adjustedY = goal.pose.position.y - yPosition
-    initialTurn = theta - 180 - math.atan2(adjustedY, adjustedX) * (180 / math.pi)
+    initialTurn = math.atan(desiredY / desiredX) - theta - 180
 
-    print "moving from (" + str(xPosition) + ", " + str(yPosition) + ")"
-    print "moving to (" + str(desiredX) + ", " + str(desiredY) + ")"
+    print "moving from (" + str(xPosition) + ", " + str(yPosition) + ") @ " + str(theta) + " degrees"
+    print "moving to (" + str(desiredX) + ", " + str(desiredY) + ") @ " + str(desiredT) + " degrees"
     print "distance: " + str(distance) + ", initial turn: " + str(initialTurn)
     print "spin!" #turn to calculated angle
-    rotateDegrees(-initialTurn)
+    rotateDegrees(initialTurn)
     print "move!" #move in straight line specified distance to new pose
     driveStraight(0.25, distance)
     rospy.sleep(2)
@@ -100,6 +100,7 @@ def driveStraight(speed, distance):
         currentX = xPosition
         currentY = yPosition
         currentDistance = math.sqrt(math.pow((currentX - initialX), 2) + math.pow((currentY - initialY), 2))
+        print (currentDistance - distance)
         if (currentDistance >= distance):
             atTarget = True
             sendMoveMsg(0, 0)
@@ -222,10 +223,11 @@ if __name__ == '__main__':
 
     # driveStraight(0.25, 0.25)
     while (not rospy.is_shutdown()):
-        rotateDegrees(90)
-        rospy.sleep(5)
-        rotateDegrees(-90)
-        rospy.sleep(5)
+        rospy.spin()
+        # rotateDegrees(90)
+        # rospy.sleep(5)
+        # rotateDegrees(-90)
+        # rospy.sleep(5)
 
     print "Lab 2 complete!"
 
