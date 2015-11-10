@@ -32,24 +32,27 @@ def navToPose(goal):
     quat = goal.pose.orientation
     q = [quat.x, quat.y, quat.z, quat.w]
     roll, pitch, yaw = euler_from_quaternion(q)
-    desiredT =  yaw * (180.0/math.pi) + 180
+    desiredT = yaw * (180.0/math.pi)
     distance = math.sqrt(math.pow((desiredX - xPosition), 2) + math.pow((desiredY - yPosition), 2))
     adjustedX = goal.pose.position.x - xPosition
     adjustedY = goal.pose.position.y - yPosition
-    initialTurn = theta - 180 - math.atan2(adjustedY, adjustedX) * (180 / math.pi)
+    print goal.pose.position.x, goal.pose.position.y
+    print xPosition, yPosition
+    print adjustedX, adjustedY
+    initialTurn = (math.atan2(adjustedY, adjustedX) * (180 / math.pi)) - theta
 
-    print "moving from (" + str(xPosition) + ", " + str(yPosition) + ")"
-    print "moving to (" + str(desiredX) + ", " + str(desiredY) + ")"
+    print "moving from (" + str(xPosition) + ", " + str(yPosition) + ") @ " + str(theta) + " degrees"
+    print "moving to (" + str(desiredX) + ", " + str(desiredY) + ") @ " + str(desiredT) + " degrees"
     print "distance: " + str(distance) + ", initial turn: " + str(initialTurn)
     print "spin!" #turn to calculated angle
-    rotateDegrees(-initialTurn)
+    rotateDegrees(initialTurn)
     print "move!" #move in straight line specified distance to new pose
     driveStraight(0.25, distance)
     rospy.sleep(2)
     print "spin!" #spin to final angle
     finalTurn = desiredT - theta
     print "rotate " + str(finalTurn) +  " to " + str(desiredT)
-    rotate(finalTurn)
+    rotateDegrees(finalTurn)
     print "done"
 
 
@@ -88,20 +91,15 @@ def spinWheels(u1, u2, time):
 
 #This function accepts a speed and a distance for the robot to move in a straight line
 def driveStraight(speed, distance):
-    move_time = distance / speed
-    w = speed / wheel_rad
-    spinWheels(w, w, move_time)
-    global xPosition
-    global yPosition
-    global theta
+    global pose
 
-    initialX = xPosition
-    initialY = yPosition
+    initialX = pose.pose.position.x
+    initialY = pose.pose.position.y
 
     atTarget = False
     while (not atTarget and not rospy.is_shutdown()):
-        currentX = xPosition
-        currentY = yPosition
+        currentX = pose.pose.position.x
+        currentY = pose.pose.position.y
         currentDistance = math.sqrt(math.pow((currentX - initialX), 2) + math.pow((currentY - initialY), 2))
         if (currentDistance >= distance):
             atTarget = True
@@ -110,26 +108,51 @@ def driveStraight(speed, distance):
             sendMoveMsg(speed, 0)
             rospy.sleep(0.15)
 
+
 #Accepts an angle and makes the robot rotate around it.
 def rotate(angle):
-    global xPosition
-    global yPosition
-    global theta
-    desiredTheta = theta + angle * (180 / math.pi)
-    if (desiredTheta >= 360):
-        desiredTheta = desiredTheta - 360
-    elif (desiredTheta <= 0):
-        desiredTheta = 360 + desiredTheta
-    while ((theta > desiredTheta + 2) or (theta < desiredTheta - 2) and not rospy.is_shutdown()):
-        if (angle < 0):
-            sendMoveMsg(0, -0.5)
+    global odom_list
+    global pose
+
+    #This node was created using Coordinate system transforms and numpy arrays.
+    #The goal is measured in the turtlebot's frame, transformed to the odom.frame 
+    transformer = tf.TransformerROS()	
+    rotation = numpy.array([[math.cos(angle), -math.sin(angle), 0],	#Create goal rotation
+                            [math.sin(angle), math.cos(angle), 0],
+                            [0,          0,          1]])
+
+    #Get transforms for frames
+    odom_list.waitForTransform('odom', 'base_footprint', rospy.Time(0), rospy.Duration(4.0))
+    (trans, rot) = odom_list.lookupTransform('odom', 'base_footprint', rospy.Time(0))
+    T_o_t = transformer.fromTranslationRotation(trans, rot)
+    R_o_t = T_o_t[0:3,0:3]
+
+    #Setup goal matrix
+    goal_rot = numpy.dot(rotation, R_o_t)
+    goal_o = numpy.array([[goal_rot[0,0], goal_rot[0,1], goal_rot[0,2], T_o_t[0,3]],
+                    [goal_rot[1,0], goal_rot[1,1], goal_rot[1,2], T_o_t[1,3]],
+                    [goal_rot[2,0], goal_rot[2,1], goal_rot[2,2], T_o_t[2,3]],
+                    [0,             0,             0,             1]])
+
+    #Continues creating and matching coordinate transforms.
+    done = False
+    while (not done and not rospy.is_shutdown()):
+        (trans, rot) = odom_list.lookupTransform('odom', 'base_footprint', rospy.Time(0))
+        state = transformer.fromTranslationRotation(trans, rot)
+        within_tolerance = abs((state - goal_o)) < .2
+        if ( within_tolerance.all() ):
+            spinWheels(0,0,0)
+            done = True
         else:
-            sendMoveMsg(0, 0.5)
-        print (desiredTheta - theta)
-    sendMoveMsg(0, 0)
+            if (angle > 0):
+                spinWheels(.5,-.5,.1)
+            else:
+                spinWheels(-.5,.5,.1)
+
 
 def rotateDegrees(angle):
     rotate(angle * (math.pi / 180))
+
 
 #This function works the same as rotate how ever it does not publish linear velocities.
 def driveArc(radius, speed, angle):
@@ -155,15 +178,19 @@ def readOdom(msg):
     global xPosition
     global yPosition
     global theta
+    global odom_list
+    global odom_tf
 
     pose = msg.pose
     geo_quat = pose.pose.orientation
-    xPosition = pose.pose.position.x
-    yPosition = pose.pose.position.y
     q = [geo_quat.x, geo_quat.y, geo_quat.z, geo_quat.w]
-    roll, pitch, yaw = euler_from_quaternion(q)
-    theta = yaw * (180.0/math.pi) + 180
-
+    odom_tf.sendTransform((pose.pose.position.x, pose.pose.position.y, 0), 
+            (pose.pose.orientation.x, pose.pose.orientation.y,pose.pose.orientation.z,pose.pose.orientation.w),rospy.Time.now(),"base_footprint","odom")
+    (trans, rot) = odom_list.lookupTransform('map', 'base_footprint', rospy.Time(0))
+    roll, pitch, yaw = euler_from_quaternion(rot)
+    theta = yaw * (180.0/math.pi)
+    xPosition = trans[0]
+    yPosition = trans[1]
 
 # (Optional) If you need something to happen repeatedly at a fixed interval, write the code here.
 # Start the timer with the following line of code:
@@ -187,13 +214,21 @@ if __name__ == '__main__':
     global pub
     global pose
     global odom_list
+    global odom_tf
+    global xOffset
+    global yOffset
+    global tOffset
+    xOffset = 0
+    yOffset = 0
+    tOffset = 0
 
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
     bumper_sub = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
     goal_sub = rospy.Subscriber('move_base_simple/goal', PoseStamped, navToPose, queue_size=1)
-    sub = rospy.Subscriber('odom', Odometry, readOdom)
+    sub = rospy.Subscriber('/odom', Odometry, readOdom)
     odom_list = tf.TransformListener()
-
+    odom_tf = tf.TransformBroadcaster()
+    odom_tf.sendTransform((0, 0, 0),(0, 0, 0, 1),rospy.Time.now(),"base_footprint","odom")
     # Use this command to make the program wait for some seconds
     rospy.sleep(2)
 
@@ -203,10 +238,10 @@ if __name__ == '__main__':
     # rospy.Timer(rospy.Duration(10), timerCallback)
 
     # driveStraight(0.25, 0.25)
-    # rotateDegrees(90)
-    
     while (not rospy.is_shutdown()):
         rospy.spin()
+        # rotateDegrees(90)
+        # rospy.sleep(5)
 
     print "Lab 2 complete!"
 
