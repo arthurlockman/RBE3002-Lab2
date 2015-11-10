@@ -47,7 +47,7 @@ def navToPose(goal):
     print "spin!" #turn to calculated angle
     rotateDegrees(initialTurn)
     print "move!" #move in straight line specified distance to new pose
-    driveStraight(0.25, distance)
+    driveSmooth(0.25, distance)
     rospy.sleep(2)
     print "spin!" #spin to final angle
     finalTurn = desiredT - theta
@@ -107,6 +107,36 @@ def driveStraight(speed, distance):
         else:
             sendMoveMsg(speed, 0)
             rospy.sleep(0.15)
+
+
+def driveSmooth(speed, distance):
+    global pose
+
+    initialX = pose.pose.position.x
+    initialY = pose.pose.position.y
+    atTarget = False
+    rampSpeed = 0.0
+    sleepTime = 0.05
+    rampPercentage = 0.15
+    step = speed / ((rampPercentage * (distance / speed)) / sleepTime)
+    print "Step size: " + str(step)
+    while (not atTarget and not rospy.is_shutdown()):
+        currentX = pose.pose.position.x
+        currentY = pose.pose.position.y
+        currentDistance = math.sqrt(math.pow((currentX - initialX), 2) + math.pow((currentY - initialY), 2))
+        if (currentDistance >= distance):
+            atTarget = True
+            sendMoveMsg(0, 0)
+        else:
+            if ((distance - currentDistance) <= distance * rampPercentage and rampSpeed >= 0):
+                rampSpeed -= step
+                sendMoveMsg(rampSpeed, 0)
+            elif ((distance - currentDistance) >= distance * (1.0 - rampPercentage) and rampSpeed <= speed):
+                rampSpeed += step
+                sendMoveMsg(rampSpeed, 0)
+            else:
+                sendMoveMsg(speed, 0)
+            rospy.sleep(sleepTime)
 
 
 #Accepts an angle and makes the robot rotate around it.
@@ -180,17 +210,19 @@ def readOdom(msg):
     global theta
     global odom_list
     global odom_tf
-
-    pose = msg.pose
-    geo_quat = pose.pose.orientation
-    q = [geo_quat.x, geo_quat.y, geo_quat.z, geo_quat.w]
-    odom_tf.sendTransform((pose.pose.position.x, pose.pose.position.y, 0), 
-            (pose.pose.orientation.x, pose.pose.orientation.y,pose.pose.orientation.z,pose.pose.orientation.w),rospy.Time.now(),"base_footprint","odom")
-    (trans, rot) = odom_list.lookupTransform('map', 'base_footprint', rospy.Time(0))
-    roll, pitch, yaw = euler_from_quaternion(rot)
-    theta = yaw * (180.0/math.pi)
-    xPosition = trans[0]
-    yPosition = trans[1]
+    try:
+        pose = msg.pose
+        geo_quat = pose.pose.orientation
+        q = [geo_quat.x, geo_quat.y, geo_quat.z, geo_quat.w]
+        odom_tf.sendTransform((pose.pose.position.x, pose.pose.position.y, 0), 
+                (pose.pose.orientation.x, pose.pose.orientation.y,pose.pose.orientation.z,pose.pose.orientation.w),rospy.Time.now(),"base_footprint","odom")
+        (trans, rot) = odom_list.lookupTransform('map', 'base_footprint', rospy.Time(0))
+        roll, pitch, yaw = euler_from_quaternion(rot)
+        theta = yaw * (180.0/math.pi)
+        xPosition = trans[0]
+        yPosition = trans[1]
+    except:
+        print "Waiting for tf..."
 
 # (Optional) If you need something to happen repeatedly at a fixed interval, write the code here.
 # Start the timer with the following line of code:
@@ -215,12 +247,6 @@ if __name__ == '__main__':
     global pose
     global odom_list
     global odom_tf
-    global xOffset
-    global yOffset
-    global tOffset
-    xOffset = 0
-    yOffset = 0
-    tOffset = 0
 
     pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, None, queue_size=10) # Publisher for commanding robot motion
     bumper_sub = rospy.Subscriber('mobile_base/events/bumper', BumperEvent, readBumper, queue_size=1) # Callback function to handle bumper events
@@ -229,19 +255,12 @@ if __name__ == '__main__':
     odom_list = tf.TransformListener()
     odom_tf = tf.TransformBroadcaster()
     odom_tf.sendTransform((0, 0, 0),(0, 0, 0, 1),rospy.Time.now(),"base_footprint","odom")
-    # Use this command to make the program wait for some seconds
     rospy.sleep(2)
 
     print "Starting Lab 2"
 
-    #make the robot keep doing something...
-    # rospy.Timer(rospy.Duration(10), timerCallback)
-
-    # driveStraight(0.25, 0.25)
-    while (not rospy.is_shutdown()):
+    while not rospy.is_shutdown():
         rospy.spin()
-        # rotateDegrees(90)
-        # rospy.sleep(5)
 
     print "Lab 2 complete!"
 
