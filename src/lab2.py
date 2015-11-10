@@ -12,8 +12,8 @@ from tf.transformations import euler_from_quaternion
 wheel_rad = 3.5 / 100.0 #cm
 wheel_base = 23.0 / 100.0 #cm
 
-#send a movement message (Twist)
 def sendMoveMsg(linearVelocity, angularVelocity):
+    """Send a movement (twist) message."""
     global pub
     msg = Twist()
     msg.linear.x = linearVelocity
@@ -21,24 +21,28 @@ def sendMoveMsg(linearVelocity, angularVelocity):
     pub.publish(msg)
 
 
-#drive to a goal subscribed as /move_base_simple/goal
 def navToPose(goal):
+    """Drive to a goal subscribed to from /move_base_simple/goal"""
     #compute angle required to make straight-line move to desired pose
     global xPosition
     global yPosition
     global theta
+    #capture desired x and y positions
     desiredY = goal.pose.position.y
     desiredX = goal.pose.position.x
+    #capture desired angle
     quat = goal.pose.orientation
     q = [quat.x, quat.y, quat.z, quat.w]
     roll, pitch, yaw = euler_from_quaternion(q)
     desiredT = yaw * (180.0/math.pi)
+    #compute distance to target
     distance = math.sqrt(math.pow((desiredX - xPosition), 2) + math.pow((desiredY - yPosition), 2))
     adjustedX = goal.pose.position.x - xPosition
     adjustedY = goal.pose.position.y - yPosition
     print goal.pose.position.x, goal.pose.position.y
     print xPosition, yPosition
     print adjustedX, adjustedY
+    #compute initial turn amount
     initialTurn = (math.atan2(adjustedY, adjustedX) * (180 / math.pi)) - theta
 
     print "moving from (" + str(xPosition) + ", " + str(yPosition) + ") @ " + str(theta) + " degrees"
@@ -56,41 +60,39 @@ def navToPose(goal):
     print "done"
 
 
-#This function sequentially calls methods to perform a trajectory.
 def executeTrajectory():
+    """This function sequentially calls methods to perform a trajectory."""
     driveStraight(1, 0.6)
     rotateDegrees(-90)
     driveStraight(1, .45)
     rotate(135)
-    pass  # Delete this 'pass' once implemented
 
 
-#This function accepts two wheel velocities and a time interval.
 def spinWheels(u1, u2, time):
+    """This function accepts two wheel velocities and a time interval."""
     global pub
 
     r = wheel_rad
     b = wheel_base
-
+    #compute wheel speeds
     u = (r / 2) * (u1 + u2)
     w = (r / b) * (u1 - u2)
     start = rospy.Time().now().secs
-
+    #create movement and stop messages
     move_msg = Twist()
     move_msg.linear.x = u
     move_msg.angular.z = w
     stop_msg = Twist()
     stop_msg.linear.x = 0
     stop_msg.angular.z = 0
-
+    #publish move message for desired time
     while(rospy.Time().now().secs - start < time and not rospy.is_shutdown()):
         pub.publish(move_msg)
     pub.publish(stop_msg)
-    pass  # Delete this 'pass' once implemented
 
 
-#This function accepts a speed and a distance for the robot to move in a straight line
 def driveStraight(speed, distance):
+    """This function accepts a speed and a distance for the robot to move in a straight line"""
     global pose
 
     initialX = pose.pose.position.x
@@ -110,6 +112,7 @@ def driveStraight(speed, distance):
 
 
 def driveSmooth(speed, distance):
+    """This function accepts a speed and a distance for the robot to move in a smoothed straight line."""
     global pose
 
     initialX = pose.pose.position.x
@@ -139,8 +142,8 @@ def driveSmooth(speed, distance):
             rospy.sleep(sleepTime)
 
 
-#Accepts an angle and makes the robot rotate around it.
 def rotate(angle):
+    """Accepts an angle and makes the robot rotate around it."""
     global odom_list
     global pose
 
@@ -179,31 +182,31 @@ def rotate(angle):
             else:
                 spinWheels(-3,3,.1)
 
-
 def rotateDegrees(angle):
+    """Rotate and angle in degrees."""
     rotate(angle * (math.pi / 180))
 
 
-#This function works the same as rotate how ever it does not publish linear velocities.
 def driveArc(radius, speed, angle):
+    """This function works the same as rotate how ever it does not publish linear velocities."""
     #assuming radius is turning radius, speed is drive speed, angle is desired final angle
     #calculate wheel speeds and time to move from current pose to final pose
     #spinWheels with time and speeds to move to correct pose
     pass  # Delete this 'pass' once implemented
 
 
-#Bumper Event Callback function
 def readBumper(msg):
+    """Bumper event callback"""
     if (msg.state == 1):
         # What should happen when the bumper is pressed?
         #Stop forward motion if bumper is pressed
         print "Bumper pressed!"
         executeTrajectory()
-        pass  # Delete this 'pass' once implemented
 
 
 #Odometry Callback function.
 def readOdom(msg):
+    """Read odometry messages and store into global variables."""
     global pose
     global xPosition
     global yPosition
@@ -216,6 +219,7 @@ def readOdom(msg):
         q = [geo_quat.x, geo_quat.y, geo_quat.z, geo_quat.w]
         odom_tf.sendTransform((pose.pose.position.x, pose.pose.position.y, 0), 
                 (pose.pose.orientation.x, pose.pose.orientation.y,pose.pose.orientation.z,pose.pose.orientation.w),rospy.Time.now(),"base_footprint","odom")
+        #Convert transform to global usable coordinates (x, y, theta)
         (trans, rot) = odom_list.lookupTransform('map', 'base_footprint', rospy.Time(0))
         roll, pitch, yaw = euler_from_quaternion(rot)
         theta = yaw * (180.0/math.pi)
@@ -224,25 +228,10 @@ def readOdom(msg):
     except:
         print "Waiting for tf..."
 
-# (Optional) If you need something to happen repeatedly at a fixed interval, write the code here.
-# Start the timer with the following line of code:
-#   rospy.Timer(rospy.Duration(.01), timerCallback)
-def timerCallback(event):
-    global pose
-    # pose = Pose()
-    #finds the position and oriention of two objects relative to each other (hint: this returns arrays, while Pose uses lists)
-    # (position, orientation) = odom_list.lookupTransform('...','...', rospy.Time(0))
-    pass # Delete this 'pass' once implemented
-
 
 # This is the program's main function
 if __name__ == '__main__':
-    # Change this node name to include your username
     rospy.init_node('sample_Lab_2_node_ajlockman')
-
-    # These are global variables. Write "global <variable_name>" in any other function
-    #  to gain access to these global variables
-
     global pub
     global pose
     global odom_list
@@ -259,9 +248,8 @@ if __name__ == '__main__':
 
     print "Starting Lab 2"
 
-    # while not rospy.is_shutdown():
-    #     rospy.spin()
+    while not rospy.is_shutdown():
+        rospy.spin()
     
-    driveSmooth(0.25, 0.5)
     print "Lab 2 complete!"
 
