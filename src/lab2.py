@@ -117,7 +117,7 @@ def driveSmooth(speed, distance):
     atTarget = False
     rampSpeed = 0.0
     sleepTime = 0.05
-    rampPercentage = 0.15
+    rampPercentage = 0.3
     step = speed / ((rampPercentage * (distance / speed)) / sleepTime)
     print "Step size: " + str(step)
     while (not atTarget and not rospy.is_shutdown()):
@@ -175,9 +175,9 @@ def rotate(angle):
             done = True
         else:
             if (angle > 0):
-                spinWheels(.5,-.5,.1)
+                spinWheels(3,-3,.1)
             else:
-                spinWheels(-.5,.5,.1)
+                spinWheels(-3,3,.1)
 
 
 def rotateDegrees(angle):
@@ -259,8 +259,9 @@ if __name__ == '__main__':
 
     print "Starting Lab 2"
 
-    while not rospy.is_shutdown():
-        rospy.spin()
-
+    # while not rospy.is_shutdown():
+    #     rospy.spin()
+    
+    driveSmooth(0.25, 0.5)
     print "Lab 2 complete!"
 
